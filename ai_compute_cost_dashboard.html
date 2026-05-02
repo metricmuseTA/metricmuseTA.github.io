@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Chatbot Compute Cost Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;700&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c23;
+    --border: #1e2330;
+    --accent: #00e5ff;
+    --accent2: #ff4d6d;
+    --accent3: #7fff6e;
+    --accent4: #ffd166;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --haiku: #7fff6e;
+    --sonnet: #00e5ff;
+    --opus: #ff4d6d;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grid */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 40px 24px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 48px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 32px;
+  }
+
+  .header-left {}
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(42px, 6vw, 80px);
+    letter-spacing: 2px;
+    line-height: 0.9;
+    color: var(--text);
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: 'DM Mono', monospace;
+    max-width: 420px;
+    line-height: 1.6;
+  }
+
+  .source-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .source-badge a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  /* KPI Row */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .kpi-card.haiku::before { background: var(--haiku); }
+  .kpi-card.sonnet::before { background: var(--sonnet); }
+  .kpi-card.opus::before { background: var(--opus); }
+  .kpi-card.savings::before { background: var(--accent4); }
+
+  .kpi-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .kpi-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 1px;
+    line-height: 1;
+  }
+
+  .kpi-card.haiku .kpi-value { color: var(--haiku); }
+  .kpi-card.sonnet .kpi-value { color: var(--sonnet); }
+  .kpi-card.opus .kpi-value { color: var(--opus); }
+  .kpi-card.savings .kpi-value { color: var(--accent4); }
+
+  .kpi-sub {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* Chart grid */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-grid-3 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-grid-wide {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+  }
+
+  .chart-card.full-width {
+    grid-column: 1 / -1;
+  }
+
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .chart-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 1px;
+    color: var(--text);
+  }
+
+  .chart-desc {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 3px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .chart-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  canvas {
+    max-height: 280px;
+  }
+
+  /* Scenario table */
+  .scenario-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    margin-top: 8px;
+  }
+
+  .scenario-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: var(--surface2);
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .scenario-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+  }
+
+  .scenario-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .scenario-table tr:hover td {
+    background: var(--surface2);
+  }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .pill.haiku { background: rgba(127,255,110,0.1); color: var(--haiku); border: 1px solid rgba(127,255,110,0.3); }
+  .pill.sonnet { background: rgba(0,229,255,0.1); color: var(--sonnet); border: 1px solid rgba(0,229,255,0.3); }
+  .pill.opus { background: rgba(255,77,109,0.1); color: var(--opus); border: 1px solid rgba(255,77,109,0.3); }
+
+  .cost-val { font-weight: 500; }
+  .cost-val.cheap { color: var(--haiku); }
+  .cost-val.mid { color: var(--sonnet); }
+  .cost-val.premium { color: var(--opus); }
+
+  /* Optimization callout */
+  .optimization-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .opt-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 16px;
+    text-align: center;
+  }
+
+  .opt-pct {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 48px;
+    color: var(--accent4);
+    line-height: 1;
+  }
+
+  .opt-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .opt-detail {
+    font-size: 12px;
+    color: var(--text);
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
+  /* Footer */
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .footer a { color: var(--accent); text-decoration: none; }
+
+  /* Ticker scrolling bar */
+  .ticker-bar {
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 8px 0;
+    margin-bottom: 32px;
+  }
+
+  .ticker-inner {
+    display: inline-block;
+    animation: ticker 30s linear infinite;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    padding-right: 80px;
+  }
+
+  .ticker-inner span { color: var(--accent); margin: 0 8px; }
+
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @media (max-width: 900px) {
+    .kpi-row { grid-template-columns: repeat(2, 1fr); }
+    .chart-grid, .chart-grid-wide, .chart-grid-3 { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 500px) {
+    .kpi-row { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="eyebrow">// ARC LAB COST INTELLIGENCE</div>
+      <h1>AI CHATBOT<br><span>COMPUTE</span><br>COST</h1>
+      <p class="subtitle">Token economics for Claude API — Haiku · Sonnet · Opus. Every dollar mapped. Every optimization modeled.</p>
+    </div>
+    <div class="source-badge">
+      DATA SOURCE<br>
+      <a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank">platform.claude.com/docs/pricing</a><br>
+      <a href="https://www.metacto.com/blogs/anthropic-api-pricing-a-full-breakdown-of-costs-and-integration" target="_blank">metacto.com · April 2026</a>
+    </div>
+  </div>
+
+  <!-- Ticker -->
+  <div class="ticker-bar">
+    <div class="ticker-inner">
+      HAIKU 4.5 <span>$1/$5</span> PER MTok INPUT/OUTPUT &nbsp;·&nbsp; SONNET 4.6 <span>$3/$15</span> PER MTok INPUT/OUTPUT &nbsp;·&nbsp; OPUS 4.6 <span>$5/$25</span> PER MTok INPUT/OUTPUT &nbsp;·&nbsp; BATCH API <span>50% OFF</span> ALL MODELS &nbsp;·&nbsp; PROMPT CACHING <span>90% OFF</span> REPEAT INPUT &nbsp;·&nbsp; COMBINED MAX SAVINGS <span>95%</span> &nbsp;·&nbsp; OPUS FAST MODE <span>$30/$150</span> PER MTok &nbsp;·&nbsp; HAIKU 4.5 <span>$1/$5</span> PER MTok INPUT/OUTPUT &nbsp;·&nbsp; SONNET 4.6 <span>$3/$15</span> PER MTok INPUT/OUTPUT &nbsp;·&nbsp; OPUS 4.6 <span>$5/$25</span> PER MTok INPUT/OUTPUT &nbsp;·&nbsp; BATCH API <span>50% OFF</span> ALL MODELS &nbsp;·&nbsp; PROMPT CACHING <span>90% OFF</span> REPEAT INPUT &nbsp;·&nbsp; COMBINED MAX SAVINGS <span>95%</span> &nbsp;·&nbsp; OPUS FAST MODE <span>$30/$150</span> PER MTok &nbsp;·&nbsp;
+    </div>
+  </div>
+
+  <!-- KPI Cards -->
+  <div class="kpi-row">
+    <div class="kpi-card haiku">
+      <div class="kpi-label">Haiku 4.5 · Output</div>
+      <div class="kpi-value">$5</div>
+      <div class="kpi-sub">per million output tokens<br>$1/MTok input</div>
+    </div>
+    <div class="kpi-card sonnet">
+      <div class="kpi-label">Sonnet 4.6 · Output</div>
+      <div class="kpi-value">$15</div>
+      <div class="kpi-sub">per million output tokens<br>$3/MTok input</div>
+    </div>
+    <div class="kpi-card opus">
+      <div class="kpi-label">Opus 4.6 · Output</div>
+      <div class="kpi-value">$25</div>
+      <div class="kpi-sub">per million output tokens<br>$5/MTok input</div>
+    </div>
+    <div class="kpi-card savings">
+      <div class="kpi-label">Max Possible Savings</div>
+      <div class="kpi-value">95%</div>
+      <div class="kpi-sub">batch API + prompt caching<br>stacked on eligible workloads</div>
+    </div>
+  </div>
+
+  <!-- Chart Row 1: Bar + Donut -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">INPUT vs OUTPUT PRICE PER MODEL</div>
+          <div class="chart-desc">$ per million tokens · April 2026</div>
+        </div>
+        <div class="chart-tag">Base Rate</div>
+      </div>
+      <canvas id="barChart"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">OUTPUT IS 5× MORE EXPENSIVE</div>
+          <div class="chart-desc">Cost ratio input vs output across models</div>
+        </div>
+        <div class="chart-tag">Ratio</div>
+      </div>
+      <canvas id="ratioChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Chart Row 2: Cost savings waterfall + line -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">COST OPTIMIZATION LEVERS — SONNET 4.6</div>
+          <div class="chart-desc">Effective cost per MTok output applying each optimization</div>
+        </div>
+        <div class="chart-tag">Optimization</div>
+      </div>
+      <canvas id="waterfallChart"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">OPUS PRICE HISTORY</div>
+          <div class="chart-desc">Flagship model cost drop 2024→2026 (output $/MTok)</div>
+        </div>
+        <div class="chart-tag">Historical</div>
+      </div>
+      <canvas id="lineChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Real-world scenario table -->
+  <div class="chart-card" style="margin-bottom:16px;">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">REAL-WORLD COST SCENARIOS</div>
+        <div class="chart-desc">Monthly cost estimates for common chatbot workloads. Assumes 60% input / 40% output token mix.</div>
+      </div>
+      <div class="chart-tag">Scenarios</div>
+    </div>
+    <table class="scenario-table">
+      <thead>
+        <tr>
+          <th>Use Case</th>
+          <th>Model</th>
+          <th>Monthly Queries</th>
+          <th>Avg Tokens/Query</th>
+          <th>Standard Cost</th>
+          <th>w/ Caching</th>
+          <th>w/ Batch</th>
+          <th>w/ Both</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Lightweight FAQ Bot</td>
+          <td><span class="pill haiku">Haiku 4.5</span></td>
+          <td>100,000</td>
+          <td>500</td>
+          <td class="cost-val cheap">$30</td>
+          <td class="cost-val cheap">$16</td>
+          <td class="cost-val cheap">$15</td>
+          <td class="cost-val cheap">$8</td>
+        </tr>
+        <tr>
+          <td>Customer Support Agent</td>
+          <td><span class="pill sonnet">Sonnet 4.6</span></td>
+          <td>50,000</td>
+          <td>1,000</td>
+          <td class="cost-val mid">$90</td>
+          <td class="cost-val mid">$49</td>
+          <td class="cost-val mid">$45</td>
+          <td class="cost-val mid">$25</td>
+        </tr>
+        <tr>
+          <td>Code Review Assistant</td>
+          <td><span class="pill sonnet">Sonnet 4.6</span></td>
+          <td>10,000</td>
+          <td>5,000</td>
+          <td class="cost-val mid">$90</td>
+          <td class="cost-val mid">$49</td>
+          <td class="cost-val mid">$45</td>
+          <td class="cost-val mid">$25</td>
+        </tr>
+        <tr>
+          <td>Research / Analysis Agent</td>
+          <td><span class="pill opus">Opus 4.6</span></td>
+          <td>5,000</td>
+          <td>10,000</td>
+          <td class="cost-val premium">$150</td>
+          <td class="cost-val premium">$82</td>
+          <td class="cost-val premium">$75</td>
+          <td class="cost-val premium">$41</td>
+        </tr>
+        <tr>
+          <td>High-Volume Data Classifier</td>
+          <td><span class="pill haiku">Haiku 4.5</span></td>
+          <td>1,000,000</td>
+          <td>200</td>
+          <td class="cost-val cheap">$240</td>
+          <td class="cost-val cheap">$130</td>
+          <td class="cost-val cheap">$120</td>
+          <td class="cost-val cheap">$65</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Optimization callout + comparison chart -->
+  <div class="chart-grid-wide">
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">COMPETITOR API PRICING — OUTPUT $/MTok</div>
+          <div class="chart-desc">Claude Opus 4.6 vs GPT, Gemini, Grok at comparable tiers · April 2026</div>
+        </div>
+        <div class="chart-tag">Comparison</div>
+      </div>
+      <canvas id="competitorChart"></canvas>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">OPTIMIZATION PLAYBOOK</div>
+          <div class="chart-desc">Stack these for maximum cost reduction</div>
+        </div>
+      </div>
+      <div class="optimization-grid">
+        <div class="opt-card">
+          <div class="opt-pct">50%</div>
+          <div class="opt-label">Batch API</div>
+          <div class="opt-detail">All models. Non-urgent jobs processed within 24hrs. Sonnet drops to $1.50/$7.50.</div>
+        </div>
+        <div class="opt-card">
+          <div class="opt-pct">90%</div>
+          <div class="opt-label">Prompt Cache</div>
+          <div class="opt-detail">Cache reads cost just 10% of standard input rate. Pays off after 1 read (5-min TTL).</div>
+        </div>
+        <div class="opt-card">
+          <div class="opt-pct">95%</div>
+          <div class="opt-label">Both Stacked</div>
+          <div class="opt-detail">Batch + caching stack together on eligible workloads. Max theoretical savings.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div>
+      SOURCES: <a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank">platform.claude.com/docs/pricing</a> &nbsp;·&nbsp;
+      <a href="https://www.metacto.com/blogs/anthropic-api-pricing-a-full-breakdown-of-costs-and-integration" target="_blank">metacto.com (Apr 2026)</a> &nbsp;·&nbsp;
+      <a href="https://www.silicondata.com/use-cases/anthropic-claude-api-pricing-2026/" target="_blank">silicondata.com (Mar 2026)</a> &nbsp;·&nbsp;
+      <a href="https://intuitionlabs.ai/articles/ai-api-pricing-comparison-grok-gemini-openai-claude" target="_blank">intuitionlabs.ai (Feb 2026)</a>
+    </div>
+    <div>BUILT BY ARC LAB · APRIL 2026</div>
+  </div>
+
+</div>
+
+<script>
+Chart.defaults.color = '#5a6070';
+Chart.defaults.borderColor = '#1e2330';
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.font.size = 11;
+
+const HAIKU = '#7fff6e';
+const SONNET = '#00e5ff';
+const OPUS = '#ff4d6d';
+const GOLD = '#ffd166';
+
+// --- Bar Chart: Input vs Output per model ---
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Haiku 4.5', 'Sonnet 4.6', 'Opus 4.6'],
+    datasets: [
+      {
+        label: 'Input ($/MTok)',
+        data: [1, 3, 5],
+        backgroundColor: ['rgba(127,255,110,0.3)','rgba(0,229,255,0.3)','rgba(255,77,109,0.3)'],
+        borderColor: [HAIKU, SONNET, OPUS],
+        borderWidth: 1.5,
+      },
+      {
+        label: 'Output ($/MTok)',
+        data: [5, 15, 25],
+        backgroundColor: ['rgba(127,255,110,0.7)','rgba(0,229,255,0.7)','rgba(255,77,109,0.7)'],
+        borderColor: [HAIKU, SONNET, OPUS],
+        borderWidth: 1.5,
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { labels: { color: '#5a6070', padding: 16 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` $${ctx.raw} per million tokens`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: '#1e2330' }, ticks: { color: '#5a6070' } },
+      y: {
+        grid: { color: '#1e2330' },
+        ticks: { color: '#5a6070', callback: v => '$' + v },
+        title: { display: true, text: '$ per 1M tokens', color: '#5a6070' }
+      }
+    }
+  }
+});
+
+// --- Ratio doughnut ---
+new Chart(document.getElementById('ratioChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Output Tokens (5×)', 'Input Tokens (1×)'],
+    datasets: [{
+      data: [83.3, 16.7],
+      backgroundColor: ['rgba(255,77,109,0.7)', 'rgba(0,229,255,0.3)'],
+      borderColor: [OPUS, SONNET],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    cutout: '65%',
+    responsive: true,
+    plugins: {
+      legend: { position: 'bottom', labels: { color: '#5a6070', padding: 14 } },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` ${ctx.label}: ${ctx.raw.toFixed(1)}% of total cost`
+        }
+      }
+    }
+  }
+});
+
+// --- Optimization waterfall: Sonnet 4.6 output ---
+new Chart(document.getElementById('waterfallChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Base Rate', '+ Batch API (50% off)', '+ Prompt Cache (90% off input)', '+ Both Stacked'],
+    datasets: [{
+      label: 'Effective Cost $/MTok Output',
+      data: [15, 7.5, 1.5, 0.75],
+      backgroundColor: [
+        'rgba(255,77,109,0.6)',
+        'rgba(255,209,102,0.6)',
+        'rgba(0,229,255,0.6)',
+        'rgba(127,255,110,0.7)',
+      ],
+      borderColor: [OPUS, GOLD, SONNET, HAIKU],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` $${ctx.raw}/MTok output`
+        }
+      }
+    },
+    scales: {
+      x: {
+        grid: { color: '#1e2330' },
+        ticks: { color: '#5a6070', callback: v => '$' + v },
+        title: { display: true, text: '$ per 1M output tokens', color: '#5a6070' }
+      },
+      y: { grid: { color: '#1e2330' }, ticks: { color: '#9aabb0' } }
+    }
+  }
+});
+
+// --- Opus price history line chart ---
+new Chart(document.getElementById('lineChart'), {
+  type: 'line',
+  data: {
+    labels: ['Opus 4 (2024)', 'Opus 4.1 (2025)', 'Opus 4.5 (early 2026)', 'Opus 4.6 (Feb 2026)'],
+    datasets: [{
+      label: 'Output Price $/MTok',
+      data: [75, 75, 25, 25],
+      borderColor: OPUS,
+      backgroundColor: 'rgba(255,77,109,0.08)',
+      borderWidth: 2,
+      tension: 0.3,
+      fill: true,
+      pointBackgroundColor: OPUS,
+      pointRadius: 5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` $${ctx.raw}/MTok output`
+        }
+      },
+      annotation: {}
+    },
+    scales: {
+      x: { grid: { color: '#1e2330' }, ticks: { color: '#5a6070', maxRotation: 20 } },
+      y: {
+        grid: { color: '#1e2330' },
+        ticks: { color: '#5a6070', callback: v => '$' + v },
+        title: { display: true, text: '$/MTok output', color: '#5a6070' }
+      }
+    }
+  }
+});
+
+// --- Competitor chart ---
+new Chart(document.getElementById('competitorChart'), {
+  type: 'bar',
+  data: {
+    labels: [
+      'Grok (xAI)\nFlagship',
+      'Gemini 3 Flash\n(Google)',
+      'GPT-5.2\n(OpenAI)',
+      'Claude Opus 4.6\n(Anthropic)',
+      'Claude Sonnet 4.6\n(Anthropic)',
+      'Claude Haiku 4.5\n(Anthropic)'
+    ],
+    datasets: [{
+      label: 'Output $/MTok',
+      data: [2, 1.0, 14, 25, 15, 5],
+      backgroundColor: [
+        'rgba(180,180,220,0.4)',
+        'rgba(100,200,100,0.4)',
+        'rgba(120,180,255,0.4)',
+        'rgba(255,77,109,0.7)',
+        'rgba(0,229,255,0.7)',
+        'rgba(127,255,110,0.7)',
+      ],
+      borderColor: ['#b4b4dc','#64c864','#78b4ff', OPUS, SONNET, HAIKU],
+      borderWidth: 1.5,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => ` $${ctx.raw}/MTok output`
+        }
+      }
+    },
+    scales: {
+      x: { grid: { color: '#1e2330' }, ticks: { color: '#5a6070', maxRotation: 30 } },
+      y: {
+        grid: { color: '#1e2330' },
+        ticks: { color: '#5a6070', callback: v => '$' + v },
+        title: { display: true, text: '$ per 1M output tokens', color: '#5a6070' }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>

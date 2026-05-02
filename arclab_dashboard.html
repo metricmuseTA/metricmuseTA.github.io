@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARC LAB — AI Carbon Intelligence Dashboard</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Outfit:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --bg2: #111118;
+    --surface: #1c1c28;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.13);
+    --text: #f0efe8;
+    --text2: #9a9aaa;
+    --text3: #4a4a5a;
+    --teal: #2dd4bf;
+    --green: #4ade80;
+    --amber: #f59e0b;
+    --coral: #fb7185;
+    --blue: #60a5fa;
+    --mono: 'DM Mono', monospace;
+    --serif: 'DM Serif Display', serif;
+    --sans: 'Outfit', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(45,212,191,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(45,212,191,0.025) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none; z-index: 0;
+  }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 1; }
+
+  /* HEADER */
+  header { padding: 3rem 0 2rem; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
+  .header-inner { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+  .logo { font-family: var(--serif); font-size: clamp(2.5rem, 6vw, 4rem); line-height: 1; }
+  .logo em { color: var(--teal); font-style: italic; }
+  .tagline { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.5rem; }
+  .header-meta { text-align: right; }
+  .header-meta .region { font-family: var(--mono); font-size: 12px; color: var(--teal); letter-spacing: 0.08em; }
+  .header-meta .updated { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  /* STAT CARDS */
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2.5rem; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 0.5rem; }
+  .stat-value { font-family: var(--serif); font-size: 2.25rem; line-height: 1; margin-bottom: 0.25rem; }
+  .stat-sub { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+  /* SECTION HEADERS */
+  .section-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem; }
+  .section-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+  .section-line { flex: 1; height: 1px; background: var(--border); }
+
+  /* CHART PANEL */
+  .panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  .panel-title { font-family: var(--mono); font-size: 11px; color: var(--teal); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1.25rem; }
+
+  canvas { display: block; }
+
+  /* THRESHOLD CONTROL */
+  .threshold-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .threshold-label { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+  .threshold-slider { flex: 1; min-width: 200px; accent-color: var(--teal); height: 4px; }
+  .threshold-val { font-family: var(--mono); font-size: 13px; color: var(--teal); font-weight: 500; min-width: 100px; }
+
+  /* SAVINGS DISPLAY */
+  .savings-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 1rem; margin-top: 1rem; }
+  .savings-card { background: var(--surface); border-radius: 8px; padding: 1rem; text-align: center; border: 1px solid var(--border); }
+  .savings-num { font-family: var(--serif); font-size: 1.75rem; line-height: 1; margin-bottom: 4px; }
+  .savings-lbl { font-family: var(--mono); font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.07em; line-height: 1.4; }
+
+  /* HEATMAP */
+  #heatmap-canvas { cursor: crosshair; }
+  .heatmap-tooltip {
+    position: fixed; background: rgba(10,10,15,0.95); border: 1px solid var(--border2);
+    border-radius: 6px; padding: 8px 12px; font-family: var(--mono); font-size: 12px;
+    color: var(--text); pointer-events: none; z-index: 100; display: none;
+  }
+
+  /* SIMULATOR */
+  .sim-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  .sim-input { display: flex; flex-direction: column; gap: 1.25rem; }
+  .input-group label { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-bottom: 0.5rem; }
+  .input-group input[type=range] { width: 100%; accent-color: var(--teal); }
+  .input-group .val { font-family: var(--mono); font-size: 13px; color: var(--teal); margin-top: 4px; }
+  .sim-results { display: flex; flex-direction: column; gap: 0.75rem; justify-content: center; }
+  .sim-result-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; display: flex; justify-content: space-between; align-items: center; }
+  .sim-result-label { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+  .sim-result-val { font-family: var(--serif); font-size: 1.5rem; }
+
+  /* ACCORDION */
+  .accordion-item { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+  .accordion-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; cursor: pointer; background: var(--bg2); transition: background 0.2s; user-select: none; }
+  .accordion-header:hover { background: var(--surface); }
+  .accordion-layer { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 3px 10px; border-radius: 3px; margin-right: 0.75rem; }
+  .accordion-name { font-size: 15px; font-weight: 500; flex: 1; }
+  .accordion-arrow { font-family: var(--mono); font-size: 12px; color: var(--text3); transition: transform 0.2s; }
+  .accordion-arrow.open { transform: rotate(180deg); }
+  .accordion-body { display: none; padding: 1rem 1.25rem 1.25rem; background: var(--bg); border-top: 1px solid var(--border); }
+  .accordion-body.open { display: block; }
+  .accordion-body p { font-size: 0.9rem; color: var(--text2); line-height: 1.7; margin-bottom: 0.75rem; }
+  .accordion-body p:last-child { margin-bottom: 0; }
+  .accordion-body strong { color: var(--text); font-weight: 500; }
+
+  /* FOOTER */
+  footer { border-top: 1px solid var(--border); padding: 2rem 0; margin-top: 3rem; }
+  .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+  .footer-copy { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: 0.06em; }
+  .footer-link { font-family: var(--mono); font-size: 11px; color: var(--teal); text-decoration: none; }
+
+  @media (max-width: 640px) {
+    .sim-grid { grid-template-columns: 1fr; }
+    .savings-row { grid-template-columns: 1fr; }
+    .stats-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="heatmap-tooltip" id="heatmap-tooltip"></div>
+
+<div class="wrap">
+  <header>
+    <div class="header-inner">
+      <div>
+        <div class="logo">ARC <em>LAB</em></div>
+        <div class="tagline">AI · Renewable · Consumption Laboratory</div>
+      </div>
+      <div class="header-meta">
+        <div class="region">CAISO_NORTH · California Grid</div>
+        <div class="updated">Carbon intensity data · Research dashboard</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- STAT CARDS -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Worst hours (3–6 AM)</div>
+      <div class="stat-value" style="color:var(--coral);">972</div>
+      <div class="stat-sub">lbs CO₂/MWh avg</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best hours (18–23)</div>
+      <div class="stat-value" style="color:var(--green);">57</div>
+      <div class="stat-sub">lbs CO₂/MWh avg</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Max reduction</div>
+      <div class="stat-value" style="color:var(--teal);">94%</div>
+      <div class="stat-sub">by shifting compute hours</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Grid region</div>
+      <div class="stat-value" style="color:var(--blue);font-size:1.5rem;">CAISO</div>
+      <div class="stat-sub">California ISO · North</div>
+    </div>
+  </div>
+
+  <!-- BAR CHART WITH DRAGGABLE THRESHOLD -->
+  <div class="section-header">
+    <span class="section-title">24-hour carbon intensity</span>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Hourly CO₂ Intensity — Drag the threshold line to classify hours</div>
+    <div class="threshold-row">
+      <span class="threshold-label">Threshold:</span>
+      <input type="range" class="threshold-slider" id="threshold-slider" min="50" max="1000" value="400">
+      <span class="threshold-val" id="threshold-display">400 lbs CO₂/MWh</span>
+    </div>
+    <canvas id="bar-canvas" height="280"></canvas>
+    <div class="savings-row">
+      <div class="savings-card">
+        <div class="savings-num" style="color:var(--green);" id="optimal-hours">—</div>
+        <div class="savings-lbl">Optimal hours<br>below threshold</div>
+      </div>
+      <div class="savings-card">
+        <div class="savings-num" style="color:var(--coral);" id="avoid-hours">—</div>
+        <div class="savings-lbl">Avoid hours<br>above threshold</div>
+      </div>
+      <div class="savings-card">
+        <div class="savings-num" style="color:var(--teal);" id="savings-pct">—</div>
+        <div class="savings-lbl">Avg CO₂ reduction<br>vs. worst window</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div class="section-header">
+    <span class="section-title">7×24 weekly heatmap</span>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Carbon Intensity by Hour and Day — Hover for details</div>
+    <canvas id="heatmap-canvas"></canvas>
+    <div style="display:flex;align-items:center;gap:1rem;margin-top:1rem;flex-wrap:wrap;">
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3);">Low CO₂</span>
+      <div style="flex:1;max-width:200px;height:8px;border-radius:4px;background:linear-gradient(to right,#4ade80,#f59e0b,#fb7185);"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:var(--text3);">High CO₂</span>
+    </div>
+  </div>
+
+  <!-- SIMULATOR -->
+  <div class="section-header">
+    <span class="section-title">CO₂ savings simulator</span>
+    <div class="section-line"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Estimate your carbon savings from shifting AI workload timing</div>
+    <div class="sim-grid">
+      <div class="sim-input">
+        <div class="input-group">
+          <label>GPU hours per day</label>
+          <input type="range" id="gpu-hours" min="1" max="24" value="8" oninput="updateSim()">
+          <div class="val" id="gpu-hours-val">8 hours</div>
+        </div>
+        <div class="input-group">
+          <label>Power draw (kW)</label>
+          <input type="range" id="power-kw" min="1" max="100" value="10" oninput="updateSim()">
+          <div class="val" id="power-kw-val">10 kW</div>
+        </div>
+        <div class="input-group">
+          <label>Days per week</label>
+          <input type="range" id="days-week" min="1" max="7" value="5" oninput="updateSim()">
+          <div class="val" id="days-week-val">5 days</div>
+        </div>
+      </div>
+      <div class="sim-results">
+        <div class="sim-result-card">
+          <div class="sim-result-label">If scheduled in worst hours</div>
+          <div class="sim-result-val" style="color:var(--coral);" id="sim-worst">—</div>
+        </div>
+        <div class="sim-result-card">
+          <div class="sim-result-label">If scheduled in best hours</div>
+          <div class="sim-result-val" style="color:var(--green);" id="sim-best">—</div>
+        </div>
+        <div class="sim-result-card" style="border-color:rgba(45,212,191,0.25);background:rgba(45,212,191,0.05);">
+          <div class="sim-result-label">Weekly CO₂ savings</div>
+          <div class="sim-result-val" style="color:var(--teal);" id="sim-savings">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACCORDION -->
+  <div class="section-header">
+    <span class="section-title">Pipeline architecture</span>
+    <div class="section-line"></div>
+  </div>
+
+  <div id="accordion">
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-layer" style="background:rgba(255,255,255,0.05);color:var(--text3);">Source</span>
+        <span class="accordion-name">WattTime API — CAISO_NORTH</span>
+        <span class="accordion-arrow">▼</span>
+      </div>
+      <div class="accordion-body">
+        <p>Real-time and historical carbon intensity data from the WattTime API for the CAISO_NORTH grid region — the California ISO northern zone. WattTime provides <strong>marginal operating emissions rate (MOER)</strong> data, which reflects the emissions of the generator that would respond to a change in load — a more accurate signal than average grid intensity.</p>
+        <p>Data is pulled via authenticated API calls and landed in raw form before any transformation is applied.</p>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-layer" style="background:rgba(245,158,11,0.1);color:var(--amber);">Bronze</span>
+        <span class="accordion-name">Raw ingestion — Delta Lake</span>
+        <span class="accordion-arrow">▼</span>
+      </div>
+      <div class="accordion-body">
+        <p>Raw API responses are landed as-is into Delta Lake in the Databricks workspace. <strong>No transformations are applied at this layer</strong> — the Bronze table is an exact copy of the source data, preserving full lineage and enabling replay if something goes wrong downstream.</p>
+        <p>This is a deliberate design choice. Bronze is your insurance policy. If a transformation bug corrupts Silver or Gold, you can always reprocess from Bronze without re-calling the API.</p>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-layer" style="background:rgba(96,165,250,0.1);color:var(--blue);">Silver</span>
+        <span class="accordion-name">Cleaned & normalized</span>
+        <span class="accordion-arrow">▼</span>
+      </div>
+      <div class="accordion-body">
+        <p>The Silver layer handles all normalization work: <strong>timestamps are cast and normalized</strong> (including the TIMESTAMP_NTZ workaround required in Databricks), nulls are handled, duplicates are removed, and schema is enforced.</p>
+        <p>A key technical challenge at this layer: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.06);padding:2px 5px;border-radius:3px;">TIMESTAMP_NTZ</code> columns don't support standard epoch math in Databricks. The fix is casting through <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.06);padding:2px 5px;border-radius:3px;">unix_timestamp(col.cast("timestamp"))</code> first.</p>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-layer" style="background:rgba(45,212,191,0.1);color:var(--teal);">Gold</span>
+        <span class="accordion-name">carbon_intensity_hourly — analytics-ready</span>
+        <span class="accordion-arrow">▼</span>
+      </div>
+      <div class="accordion-body">
+        <p>The Gold table is where business logic lives: hourly averages are computed, hours are classified as <strong>Optimal / Moderate / Avoid</strong> based on intensity thresholds, and weekday/weekend splits are applied. This is the table all downstream consumers — the Streamlit app, this dashboard, any BI tool — query against.</p>
+        <p>Table location: <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.06);padding:2px 5px;border-radius:3px;">bootcamp_students.gold.carbon_intensity_hourly</code></p>
+      </div>
+    </div>
+    <div class="accordion-item">
+      <div class="accordion-header" onclick="toggleAccordion(this)">
+        <span class="accordion-layer" style="background:rgba(167,139,250,0.1);color:#a78bfa;">App</span>
+        <span class="accordion-name">Streamlit + LangChain RAG assistant</span>
+        <span class="accordion-arrow">▼</span>
+      </div>
+      <div class="accordion-body">
+        <p>The live Streamlit app at <a href="https://arc-lab.streamlit.app" target="_blank" style="color:var(--teal);">arc-lab.streamlit.app</a> sits on top of the Gold table. It provides real-time carbon intensity forecasting, a natural-language RAG assistant powered by LangChain and Databricks Vector Search, token auto-refresh, and a Parquet fallback for when the live connection is unavailable.</p>
+        <p>The LLM integration uses <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,0.06);padding:2px 5px;border-radius:3px;">from databricks_langchain import ChatDatabricks</code> — not the standard LangChain community package, which conflicts at runtime in the Databricks environment.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-copy">ARC LAB · AI Renewable Consumption Laboratory · Metric Muse</span>
+      <a href="https://arc-lab.streamlit.app" target="_blank" class="footer-link">Live app ↗</a>
+    </div>
+  </footer>
+</div>
+
+<script>
+  // ── DATA ──────────────────────────────────────────────
+  // Accurate CAISO_NORTH 24-hour carbon intensity profile
+  // Peak ~972 lbs CO₂/MWh at hours 3-6, low ~57 at hours 18-23
+  const hourlyData = [
+    420, 480, 720, 972, 940, 860, 680, 520,
+    440, 380, 320, 290, 280, 295, 310, 340,
+    360, 200, 80, 57, 65, 72, 85, 200
+  ];
+
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  // Weekday/weekend variation on the base profile
+  const dayVariance = [1.0, 0.98, 1.02, 0.97, 1.01, 0.88, 0.85];
+
+  // ── BAR CHART ─────────────────────────────────────────
+  const barCanvas = document.getElementById('bar-canvas');
+  const barCtx = barCanvas.getContext('2d');
+  let threshold = 400;
+
+  function resizeBarCanvas() {
+    barCanvas.width = barCanvas.parentElement.clientWidth;
+  }
+
+  function drawBars() {
+    const w = barCanvas.width, h = barCanvas.height;
+    const pad = { top: 20, bottom: 40, left: 55, right: 20 };
+    const chartW = w - pad.left - pad.right;
+    const chartH = h - pad.top - pad.bottom;
+    const maxVal = 1050;
+    const barW = (chartW / 24) * 0.72;
+    const gap = (chartW / 24) * 0.28;
+
+    barCtx.clearRect(0, 0, w, h);
+
+    // Grid lines
+    [0, 250, 500, 750, 1000].forEach(v => {
+      const y = pad.top + chartH - (v / maxVal) * chartH;
+      barCtx.beginPath();
+      barCtx.strokeStyle = 'rgba(255,255,255,0.05)';
+      barCtx.lineWidth = 1;
+      barCtx.moveTo(pad.left, y);
+      barCtx.lineTo(w - pad.right, y);
+      barCtx.stroke();
+      barCtx.fillStyle = '#4a4a5a';
+      barCtx.font = '10px DM Mono, monospace';
+      barCtx.textAlign = 'right';
+      barCtx.fillText(v, pad.left - 8, y + 3);
+    });
+
+    // Bars
+    hourlyData.forEach((val, i) => {
+      const x = pad.left + i * (chartW / 24) + gap / 2;
+      const barH = (val / maxVal) * chartH;
+      const y = pad.top + chartH - barH;
+      const isOptimal = val <= threshold;
+      barCtx.fillStyle = isOptimal
+        ? 'rgba(74,222,128,0.75)'
+        : val > threshold * 1.5 ? 'rgba(251,113,133,0.85)' : 'rgba(245,158,11,0.75)';
+      barCtx.beginPath();
+      barCtx.roundRect(x, y, barW, barH, [3, 3, 0, 0]);
+      barCtx.fill();
+    });
+
+    // Hour labels
+    [0,3,6,9,12,15,18,21].forEach(h => {
+      const x = pad.left + h * (chartW / 24) + (chartW / 24) / 2;
+      const label = h === 0 ? '12 AM' : h < 12 ? `${h} AM` : h === 12 ? '12 PM' : `${h-12} PM`;
+      barCtx.fillStyle = '#4a4a5a';
+      barCtx.font = '10px DM Mono, monospace';
+      barCtx.textAlign = 'center';
+      barCtx.fillText(label, x, h + 40 - 2 + barCanvas.height - 8);
+    });
+
+    // Threshold line
+    const ty = pad.top + chartH - (threshold / maxVal) * chartH;
+    barCtx.beginPath();
+    barCtx.strokeStyle = '#2dd4bf';
+    barCtx.lineWidth = 2;
+    barCtx.setLineDash([6, 4]);
+    barCtx.moveTo(pad.left, ty);
+    barCtx.lineTo(w - pad.right, ty);
+    barCtx.stroke();
+    barCtx.setLineDash([]);
+
+    // Threshold label
+    barCtx.fillStyle = '#2dd4bf';
+    barCtx.font = '500 11px DM Mono, monospace';
+    barCtx.textAlign = 'left';
+    barCtx.fillText(`← threshold: ${threshold}`, pad.left + 8, ty - 6);
+
+    // Update stats
+    const optimal = hourlyData.filter(v => v <= threshold);
+    const avoid = hourlyData.filter(v => v > threshold);
+    const avgOptimal = optimal.length ? Math.round(optimal.reduce((a,b)=>a+b,0)/optimal.length) : 0;
+    const avgAvoid = avoid.length ? Math.round(avoid.reduce((a,b)=>a+b,0)/avoid.length) : 972;
+    const savingsPct = avgAvoid > 0 ? Math.round((1 - avgOptimal/avgAvoid)*100) : 0;
+
+    document.getElementById('optimal-hours').textContent = optimal.length + 'h';
+    document.getElementById('avoid-hours').textContent = avoid.length + 'h';
+    document.getElementById('savings-pct').textContent = savingsPct + '%';
+  }
+
+  const slider = document.getElementById('threshold-slider');
+  slider.addEventListener('input', () => {
+    threshold = parseInt(slider.value);
+    document.getElementById('threshold-display').textContent = threshold + ' lbs CO₂/MWh';
+    drawBars();
+  });
+
+  // ── HEATMAP ──────────────────────────────────────────
+  const heatCanvas = document.getElementById('heatmap-canvas');
+  const heatCtx = heatCanvas.getContext('2d');
+  const tooltip = document.getElementById('heatmap-tooltip');
+
+  function resizeHeatCanvas() {
+    heatCanvas.width = heatCanvas.parentElement.clientWidth;
+    heatCanvas.height = Math.min(280, heatCanvas.width * 0.28);
+  }
+
+  function intensityColor(val) {
+    const mn = 50, mx = 1000;
+    const t = Math.max(0, Math.min(1, (val - mn) / (mx - mn)));
+    if (t < 0.5) {
+      const r = Math.round(74 + (245-74)*t*2);
+      const g = Math.round(222 + (158-222)*t*2);
+      const b = Math.round(128 + (11-128)*t*2);
+      return `rgb(${r},${g},${b})`;
+    } else {
+      const tt = (t - 0.5) * 2;
+      const r = Math.round(245 + (251-245)*tt);
+      const g = Math.round(158 + (113-158)*tt);
+      const b = Math.round(11 + (133-11)*tt);
+      return `rgb(${r},${g},${b})`;
+    }
+  }
+
+  function drawHeatmap() {
+    const w = heatCanvas.width, h = heatCanvas.height;
+    const padL = 40, padT = 28, padR = 10, padB = 20;
+    const cellW = (w - padL - padR) / 24;
+    const cellH = (h - padT - padB) / 7;
+
+    heatCtx.clearRect(0, 0, w, h);
+
+    days.forEach((day, di) => {
+      hourlyData.forEach((baseVal, hi) => {
+        const val = Math.round(baseVal * dayVariance[di]);
+        const x = padL + hi * cellW;
+        const y = padT + di * cellH;
+        heatCtx.fillStyle = intensityColor(val);
+        heatCtx.fillRect(x + 1, y + 1, cellW - 2, cellH - 2);
+      });
+      // Day labels
+      heatCtx.fillStyle = '#5a5a6a';
+      heatCtx.font = '10px DM Mono, monospace';
+      heatCtx.textAlign = 'right';
+      heatCtx.fillText(day, padL - 6, padT + di * cellH + cellH/2 + 4);
+    });
+
+    // Hour labels
+    [0,3,6,9,12,15,18,21].forEach(hi => {
+      const x = padL + hi * cellW + cellW/2;
+      const label = hi === 0 ? '12a' : hi < 12 ? `${hi}a` : hi === 12 ? '12p' : `${hi-12}p`;
+      heatCtx.fillStyle = '#5a5a6a';
+      heatCtx.font = '9px DM Mono, monospace';
+      heatCtx.textAlign = 'center';
+      heatCtx.fillText(label, x, padT - 8);
+    });
+  }
+
+  heatCanvas.addEventListener('mousemove', (e) => {
+    const rect = heatCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    const padL = 40, padT = 28, padR = 10, padB = 20;
+    const w = heatCanvas.width, h = heatCanvas.height;
+    const cellW = (w - padL - padR) / 24;
+    const cellH = (h - padT - padB) / 7;
+    const hi = Math.floor((mx - padL) / cellW);
+    const di = Math.floor((my - padT) / cellH);
+
+    if (hi >= 0 && hi < 24 && di >= 0 && di < 7) {
+      const val = Math.round(hourlyData[hi] * dayVariance[di]);
+      const label = hi === 0 ? '12 AM' : hi < 12 ? `${hi} AM` : hi === 12 ? '12 PM' : `${hi-12} PM`;
+      const classification = val <= 150 ? 'Optimal ✓' : val <= 500 ? 'Moderate' : 'Avoid ✗';
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 14) + 'px';
+      tooltip.style.top = (e.clientY - 10) + 'px';
+      tooltip.innerHTML = `<strong>${days[di]} ${label}</strong><br>${val} lbs CO₂/MWh<br>${classification}`;
+    } else {
+      tooltip.style.display = 'none';
+    }
+  });
+
+  heatCanvas.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+  // ── SIMULATOR ────────────────────────────────────────
+  function updateSim() {
+    const gpuH = parseInt(document.getElementById('gpu-hours').value);
+    const kw = parseInt(document.getElementById('power-kw').value);
+    const days = parseInt(document.getElementById('days-week').value);
+    document.getElementById('gpu-hours-val').textContent = gpuH + ' hours';
+    document.getElementById('power-kw-val').textContent = kw + ' kW';
+    document.getElementById('days-week-val').textContent = days + ' days';
+
+    const kwh = gpuH * kw;
+    const mwh = kwh / 1000;
+    const worstCO2 = Math.round(mwh * 972 * days);
+    const bestCO2 = Math.round(mwh * 57 * days);
+    const savings = worstCO2 - bestCO2;
+
+    const fmt = n => n >= 1000 ? (n/1000).toFixed(1) + 'k' : n;
+    document.getElementById('sim-worst').textContent = fmt(worstCO2) + ' lbs CO₂';
+    document.getElementById('sim-best').textContent = fmt(bestCO2) + ' lbs CO₂';
+    document.getElementById('sim-savings').textContent = fmt(savings) + ' lbs saved';
+  }
+
+  // ── ACCORDION ────────────────────────────────────────
+  function toggleAccordion(header) {
+    const body = header.nextElementSibling;
+    const arrow = header.querySelector('.accordion-arrow');
+    const isOpen = body.classList.contains('open');
+    body.classList.toggle('open', !isOpen);
+    arrow.classList.toggle('open', !isOpen);
+  }
+
+  // ── INIT ─────────────────────────────────────────────
+  function init() {
+    resizeBarCanvas();
+    resizeHeatCanvas();
+    drawBars();
+    drawHeatmap();
+    updateSim();
+  }
+
+  window.addEventListener('resize', () => {
+    resizeBarCanvas();
+    resizeHeatCanvas();
+    drawBars();
+    drawHeatmap();
+  });
+
+  init();
+</script>
+</body>
+</html>
